@@ -1,5 +1,6 @@
 
 import os
+import re
 from flask import Flask, json, request, abort, jsonify, redirect
 from flask.helpers import url_for
 from flask.wrappers import Response
@@ -38,10 +39,12 @@ def create_app(test_config=None):
   '''
   @app.route('/categories')
   def get_categories():
-    categories = Category.query.with_entities(Category.type).all()
-    cat_list=[]
-    for i in range(len(categories)):
-      cat_list.append(categories[i].type)
+    # categories = Category.query.with_entities(Category.type).all()
+    # cat_list=[]
+    # for i in range(len(categories)):
+    #   cat_list.append(categories[i].type)
+    categories = Category.query.all()
+    cat_list = [category.type for category in categories]
     return jsonify({
       'categories' : cat_list
     })
@@ -83,7 +86,7 @@ def create_app(test_config=None):
   def delete_question(id):
     question =Question.query.filter_by(id = id).first()
     question.delete()
-    return abort(200)
+    return jsonify({"messege": "success"})
   '''
   @TODO:
   Create an endpoint to POST a new question,
@@ -94,7 +97,16 @@ def create_app(test_config=None):
   the form will clear and the question will appear at the end of the last page
   of the questions list in the "List" tab.
   '''
-  
+  @app.route('/questions/add', methods=['POST'])
+  def add_question():
+    question = request.get_json()['question']
+    answer = request.get_json()['answer']
+    difficulty = request.get_json()['difficulty']
+    category = request.get_json()['category']
+    _question = Question(question, answer, difficulty, category)
+    _question.insert()
+    return jsonify({"messege": "success"})
+
   '''
   @TODO:
   Create a POST endpoint to get questions based on a search term.
@@ -105,7 +117,16 @@ def create_app(test_config=None):
   only question that include that string within their question.
   Try using the word "title" to start.
   '''
-
+  @app.route('/questions/search', methods=['POST'])
+  def search_question():
+    searchTerm = request.get_json()['searchTerm']
+    Results = Question.query.filter(Question.question.ilike(f"%{searchTerm}%")).all()
+    searchResults = [question.format() for question in Results]
+    return jsonify({
+      'questions': searchResults,
+      'totalQuestions': len(searchResults),
+      'currentCategory': 'a'
+    })
   '''
   @TODO:
   Create a GET endpoint to get questions based on category.
@@ -114,7 +135,7 @@ def create_app(test_config=None):
   categories in the left column will cause only questions of that
   category to be shown.
   '''
-
+  
 
   '''
   @TODO:
