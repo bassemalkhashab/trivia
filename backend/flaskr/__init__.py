@@ -1,7 +1,9 @@
 
+from logging import error
 import os
 import re
 from flask import Flask, json, request, abort, jsonify, redirect
+from flask.globals import session
 from flask.helpers import url_for
 from flask.wrappers import Response
 from flask_sqlalchemy import SQLAlchemy
@@ -39,15 +41,15 @@ def create_app(test_config=None):
   '''
   @app.route('/categories')
   def get_categories():
-    # categories = Category.query.with_entities(Category.type).all()
-    # cat_list=[]
-    # for i in range(len(categories)):
-    #   cat_list.append(categories[i].type)
-    categories = Category.query.all()
-    cat_list = [category.type for category in categories]
-    return jsonify({
-      'categories' : cat_list
-    })
+    try:
+      categories = Category.query.all()
+      cat_list = [category.type for category in categories]
+      return jsonify({
+        'categories' : cat_list,
+        'success':True
+      })
+    except:
+      abort(422)
 
   '''
   @TODO:
@@ -63,18 +65,22 @@ def create_app(test_config=None):
   '''
   @app.route('/questions')
   def show_questions():
-    page = request.args.get('page', 1, int)
-    start = (page-1)*10
-    end = start+10
-    Questions = Question.query.all()
-    questions = [question.format() for question in Questions]
-    Categories = Category.query.all()
-    categories = [category.type for category in Categories]
-    return jsonify(  {
-      'format':questions[start:end],
-      'total_questions': len(questions),
-      'categories': categories
-      })
+    try:
+      page = request.args.get('page', 1, int)
+      start = (page-1)*10
+      end = start+10
+      Questions = Question.query.all()
+      questions = [question.format() for question in Questions]
+      Categories = Category.query.all()
+      categories = [category.type for category in Categories]
+      return jsonify(  {
+        'format':questions[start:end],
+        'total_questions': len(questions),
+        'categories': categories,
+        'success' : True
+        })
+    except:
+      abort(422)
   '''
   @TODO:
   Create an endpoint to DELETE question using a question ID.
@@ -84,9 +90,14 @@ def create_app(test_config=None):
   '''
   @app.route('/questions/<int:id>', methods=['DELETE'])
   def delete_question(id):
-    question =Question.query.filter_by(id = id).first()
-    question.delete()
-    return jsonify({"messege": "success"})
+    try:
+      question =Question.query.filter_by(id = id).one_or_none()
+      if question is None:
+        abort(404)
+      question.delete()
+      return jsonify({"success": True})
+    except:
+      abort(422)
   '''
   @TODO:
   Create an endpoint to POST a new question,
@@ -103,7 +114,10 @@ def create_app(test_config=None):
     answer = request.get_json()['answer']
     difficulty = request.get_json()['difficulty']
     category = request.get_json()['category']
-    _question = Question(question, answer, difficulty, category)
+    print("category: ",category)
+    category=int(category)+1
+    print("category: ",category)
+    _question = Question(question, answer,category , difficulty)
     _question.insert()
     return jsonify({"messege": "success"})
 
@@ -119,14 +133,18 @@ def create_app(test_config=None):
   '''
   @app.route('/questions/search', methods=['POST'])
   def search_question():
-    searchTerm = request.get_json()['searchTerm']
-    Results = Question.query.filter(Question.question.ilike(f"%{searchTerm}%")).all()
-    searchResults = [question.format() for question in Results]
-    return jsonify({
-      'questions': searchResults,
-      'totalQuestions': len(searchResults),
-      'currentCategory': 'a'
-    })
+    try:
+      searchTerm = request.get_json()['searchTerm']
+      Results = Question.query.filter(Question.question.ilike(f"%{searchTerm}%")).all()
+      searchResults = [question.format() for question in Results]
+      return jsonify({
+        'questions': searchResults,
+        'totalQuestions': len(searchResults),
+        'currentCategory': 'a',
+        'success':True
+      })
+    except:
+      abort(422)
   '''
   @TODO:
   Create a GET endpoint to get questions based on category.
@@ -135,7 +153,19 @@ def create_app(test_config=None):
   categories in the left column will cause only questions of that
   category to be shown.
   '''
-  
+  @app.route('/categories/<int:ID>/questions')
+  def filter_by_category(ID):
+    try:
+      Results = Question.query.filter_by(category= ID+1).all()
+      searchResults = [question.format() for question in Results]
+      return jsonify({
+        'questions': searchResults,
+        'totalQuestions': len(searchResults),
+        'currentCategory': 'a',
+        'success': True
+      })
+    except:
+      abort(422)
 
   '''
   @TODO:
@@ -148,12 +178,48 @@ def create_app(test_config=None):
   one question at a time is displayed, the user is allowed to answer
   and shown whether they were correct or not.
   '''
-
+  @app.route('/quizzes', methods=['POST'])
+  def get_question():
+    try:
+      category = request.get_json()['quiz_category']
+      previousQuestions = request.get_json()['previous_questions']
+      Results = Question.query.filter_by(category= category['id']).all()
+      searchResult = [question.format() for question in Results]
+      
+      return jsonify({
+        'question': searchResult[len(previousQuestions)],
+        'currentCategory': 'a',
+        'success':True
+      })
+    except:
+      abort(422)
   '''
   @TODO:
   Create error handlers for all expected errors
   including 404 and 422.
   '''
+  @app.errorhandler(404)
+  def not_found(e):
+    return jsonify({
+        'success' : False,
+        'error':404,
+        'message':'Not Found'
+      }),404
+
+  @app.errorhandler(422)
+  def not_found(e):
+    return jsonify({
+        'success' : False,
+        'error':422,
+        'message':'Unprocessable Entity'
+      }),422
+
+  @app.errorhandler(405)
+  def not_found(e):
+    return jsonify({
+        'success' : False,
+        'error':405,
+        'message':'Method Not Allowed'
+      }),405
 
   return app
-
