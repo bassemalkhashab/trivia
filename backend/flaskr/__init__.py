@@ -186,6 +186,10 @@ def create_app(test_config=None):
       Results = Question.query.filter_by(category= category['id']).all()
       searchResult = [question.format() for question in Results]
       
+      if len(previousQuestions) == len(searchResult):
+        return jsonify({
+          'message':'finish'
+        })
       return jsonify({
         'question': searchResult[len(previousQuestions)],
         'currentCategory': 'a',
