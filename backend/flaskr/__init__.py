@@ -127,7 +127,7 @@ def create_app(test_config=None):
       difficulty = request.get_json()['difficulty']
       category = request.get_json()['category']
       print("category: ",category)
-      category=int(category)
+      category=int(category)+1
       print("category: ",category)
       _question = Question(question, answer,category , difficulty)
       _question.insert()
