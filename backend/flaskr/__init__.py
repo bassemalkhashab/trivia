@@ -12,6 +12,7 @@ import random
 
 import sqlalchemy
 from sqlalchemy.orm import load_only
+from werkzeug.exceptions import NotFound
 
 from models import setup_db, Question, Category
 
@@ -73,6 +74,12 @@ def create_app(test_config=None):
       questions = [question.format() for question in Questions]
       Categories = Category.query.all()
       categories = [category.type for category in Categories]
+      maxPages = int(len(questions)/10)+1
+      print("page: ",page)
+      print("max number of pages: ",maxPages)
+      if (page > maxPages):
+        abort()
+       
       return jsonify(  {
         'format':questions[start:end],
         'total_questions': len(questions),
@@ -80,6 +87,8 @@ def create_app(test_config=None):
         'success' : True
         })
     except:
+      if (page > maxPages):
+        abort(404)
       abort(422)
   '''
   @TODO:
@@ -93,10 +102,12 @@ def create_app(test_config=None):
     try:
       question =Question.query.filter_by(id = id).one_or_none()
       if question is None:
-        abort(404)
+        abort()
       question.delete()
       return jsonify({"success": True})
     except:
+      if question is None:
+        abort(404)
       abort(422)
   '''
   @TODO:
@@ -110,16 +121,19 @@ def create_app(test_config=None):
   '''
   @app.route('/questions/add', methods=['POST'])
   def add_question():
-    question = request.get_json()['question']
-    answer = request.get_json()['answer']
-    difficulty = request.get_json()['difficulty']
-    category = request.get_json()['category']
-    print("category: ",category)
-    category=int(category)+1
-    print("category: ",category)
-    _question = Question(question, answer,category , difficulty)
-    _question.insert()
-    return jsonify({"messege": "success"})
+    try:
+      question = request.get_json()['question']
+      answer = request.get_json()['answer']
+      difficulty = request.get_json()['difficulty']
+      category = request.get_json()['category']
+      print("category: ",category)
+      category=int(category)
+      print("category: ",category)
+      _question = Question(question, answer,category , difficulty)
+      _question.insert()
+      return jsonify({"success": True})
+    except:
+      abort(422)
 
   '''
   @TODO:
@@ -211,7 +225,7 @@ def create_app(test_config=None):
       }),404
 
   @app.errorhandler(422)
-  def not_found(e):
+  def unprocessable(e):
     return jsonify({
         'success' : False,
         'error':422,
@@ -219,7 +233,7 @@ def create_app(test_config=None):
       }),422
 
   @app.errorhandler(405)
-  def not_found(e):
+  def not_allowed(e):
     return jsonify({
         'success' : False,
         'error':405,
