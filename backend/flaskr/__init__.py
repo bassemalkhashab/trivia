@@ -197,9 +197,12 @@ def create_app(test_config=None):
     try:
       category = request.get_json()['quiz_category']
       previousQuestions = request.get_json()['previous_questions']
-      Results = Question.query.filter_by(category= category['id']).all()
+      if category['id'] == 0:
+        Results = Question.query.all()
+        searchResult = [question.format() for question in Results]
+      else:
+        Results = Question.query.filter_by(category= category['id']).all()
       searchResult = [question.format() for question in Results]
-      
       if len(previousQuestions) == len(searchResult):
         return jsonify({
           'message':'finish'
